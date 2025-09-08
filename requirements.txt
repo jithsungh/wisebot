@@ -5,3 +5,9 @@ langchain
 chromadb
 langchain_groq
 langchain_chroma
+langchain_huggingface
+websockets
+python-multipart
+PyPDF2
+python-docx
+sentence-transformers
