@@ -8,7 +8,7 @@ def split_text_to_chunks(cleaned_text: str) -> list[Document]:
 
     # Split into chunks
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=300,
+        chunk_size=500,
         chunk_overlap=50,
         separators=["\n", ".", "?", "!"]  # smart splitting
     )

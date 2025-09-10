@@ -1,22 +1,20 @@
+from langchain_huggingface import HuggingFaceEmbeddings
+import chromadb
+import uuid
+from splitText import semantic_split_text
+
+
 def setup_knowledge_base(text: str, collection_name: str = "manuals"):
     """
-    Process and load documents into ChromaDB
+    Clean, split, embed, and load documents into ChromaDB
     """
     print("🔄 Processing documents...")
 
-    # Lazy import heavy modules and helpers
-    from langchain_huggingface import HuggingFaceEmbeddings
-    import chromadb
-    import uuid
-    import cleanText
-    import splitText
+    # Clean + semantic split
+    chunks = semantic_split_text(text)
+    print(f"📄 Created {len(chunks)} semantic text chunks")
 
-    # Clean and split text
-    cleaned_text = cleanText.clean_text(text)
-    chunks = splitText.split_text_to_chunks(cleaned_text)
-    print(f"📄 Created {len(chunks)} text chunks")
-
-    # Create embeddings
+    # Embeddings
     embedding_model = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -27,16 +25,21 @@ def setup_knowledge_base(text: str, collection_name: str = "manuals"):
     # Setup Chroma collection
     chroma_client = chromadb.PersistentClient(path="./chroma_db")
     collection = chroma_client.get_or_create_collection(name=collection_name)
-    for chunk, embedding in zip(chunks, embeddings):
-        collection.add(
-            ids=[str(uuid.uuid4())],
-            documents=[chunk.page_content],
-            embeddings=[embedding],
-        )
+
+    # Batch insert (faster & scalable)
+    ids = [str(uuid.uuid4()) for _ in chunks]
+    documents = [chunk.page_content for chunk in chunks]
+    metadatas = [chunk.metadata for chunk in chunks]
+
+    collection.add(
+        ids=ids,
+        documents=documents,
+        embeddings=embeddings,
+        metadatas=metadatas
+    )
 
     print(f"✅ Added {collection.count()} vectors to ChromaDB")
     return collection.count()
-
 
     # # Delete existing vectors
     # all_items = collection.get(include=[])

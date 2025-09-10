@@ -6,7 +6,7 @@ def main():
     
     try:
         # Initialize chatbot
-        chatbot = AdaptiveKnowledgeChatbot(collection_name="manuals")
+        chatbot = AdaptiveKnowledgeChatbot(collection_name="documents")
         
         # Display vectorstore info
         info = chatbot.get_vectorstore_info()

@@ -46,11 +46,10 @@ function App() {
           </button>
         </div>
       </header>
-      <center>
-        <main className="app-main">
-          {isAdmin ? <AdminPanel /> : <ChatInterface userId={userId} />}
-        </main>
-      </center>
+
+      <main className="app-main">
+        {isAdmin ? <AdminPanel /> : <ChatInterface userId={userId} />}
+      </main>
     </div>
   );
 }

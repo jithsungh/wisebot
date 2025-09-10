@@ -6,5 +6,7 @@ venv
 __pycache__/
 *.pyc
 
+uploads/*
+
 
 chroma_db

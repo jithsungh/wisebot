@@ -11,6 +11,12 @@ const AdminPanel = () => {
   const [messageType, setMessageType] = useState("");
   const fileInputRef = useRef(null);
 
+  // Text input states
+  const [textInput, setTextInput] = useState("");
+  const [textTitle, setTextTitle] = useState("");
+  const [isProcessingText, setIsProcessingText] = useState(false);
+  const [activeTab, setActiveTab] = useState("file"); // "file" or "text"
+
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -53,6 +59,7 @@ const AdminPanel = () => {
 
     return null;
   };
+
   const uploadAndProcessFile = async () => {
     if (!selectedFile) return;
 
@@ -68,73 +75,80 @@ const AdminPanel = () => {
     setMessage("");
 
     try {
-      // Start async processing
-      setMessage("Uploading file...");
-      setUploadProgress(10);
-
-      const response = await apiService.processDocumentAsync(selectedFile);
-      const processingId = response.data.processing_id;
-
-      setUploadProgress(30);
-      setMessage("File uploaded successfully. Processing document...");
-
-      // Poll for processing status
-      const pollStatus = async () => {
-        try {
-          const statusResponse = await apiService.getProcessingStatus(
-            processingId
-          );
-          const status = statusResponse.data;
-
-          setMessage(status.message);
-
-          if (status.status === "uploaded") {
-            setUploadProgress(40);
-          } else if (status.status === "processing") {
-            setUploadProgress(70);
-          } else if (status.status === "completed") {
-            setUploadProgress(100);
-            setMessage(
-              `Successfully processed "${selectedFile.name}". Created ${status.chunks_created} knowledge chunks.`
-            );
-            setMessageType("success");
-
-            // Reset form after success
-            setTimeout(() => {
-              setSelectedFile(null);
-              setUploadProgress(0);
-              setIsUploading(false);
-              setMessage("");
-              setMessageType("");
-              if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-              }
-              loadUploadedFiles();
-            }, 2000);
-          } else if (status.status === "error") {
-            setUploadProgress(0);
-            setIsUploading(false);
-            setMessage(status.message);
-            setMessageType("error");
-          } else {
-            // Continue polling
-            setTimeout(pollStatus, 2000);
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
           }
-        } catch (error) {
-          console.error("Error polling status:", error);
-          setUploadProgress(0);
-          setIsUploading(false);
-          setMessage("Error checking processing status");
-          setMessageType("error");
-        }
-      };
+          return prev + 10;
+        });
+      }, 200);
 
-      // Start polling
-      setTimeout(pollStatus, 1000);
+      const response = await apiService.processDocument(selectedFile);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      setTimeout(() => {
+        setMessage(
+          `Successfully processed "${selectedFile.name}". Created ${response.data.chunks_created} knowledge chunks.`
+        );
+        setMessageType("success");
+        setSelectedFile(null);
+        setUploadProgress(0);
+        setIsUploading(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        loadUploadedFiles();
+      }, 500);
     } catch (error) {
       setUploadProgress(0);
       setIsUploading(false);
       setMessage(error.response?.data?.detail || "Failed to process document");
+      setMessageType("error");
+    }
+  };
+
+  const processTextInput = async () => {
+    if (!textInput.trim()) {
+      setMessage("Please enter some text to process");
+      setMessageType("error");
+      return;
+    }
+
+    if (textInput.length > 5 * 1024 * 1024) {
+      // 5MB limit
+      setMessage("Text is too large. Please limit to 5MB");
+      setMessageType("error");
+      return;
+    }
+
+    setIsProcessingText(true);
+    setMessage("");
+
+    try {
+      const title = textTitle.trim() || "Manual Text Input";
+      const response = await apiService.processTextInput(textInput, title);
+
+      setMessage(
+        `Successfully processed text: "${title}". Created ${response.data.chunks_created} knowledge chunks.`
+      );
+      setMessageType("success");
+
+      // Reset form after success
+      setTimeout(() => {
+        setTextInput("");
+        setTextTitle("");
+        setIsProcessingText(false);
+        setMessage("");
+        setMessageType("");
+      }, 3000);
+    } catch (error) {
+      setIsProcessingText(false);
+      setMessage(error.response?.data?.detail || "Failed to process text");
       setMessageType("error");
     }
   };
@@ -164,85 +178,184 @@ const AdminPanel = () => {
   useState(() => {
     loadUploadedFiles();
   }, []);
-
   return (
     <div className="admin-panel">
       <div className="admin-header">
         <h2>Admin Panel</h2>
-        <p>Upload and manage documents for the knowledge base</p>
+        <p>Upload documents or add text content to the knowledge base</p>
       </div>
 
-      <div className="upload-section">
-        <h3>Upload Document</h3>
-        <div
-          className={`file-drop-zone ${selectedFile ? "has-file" : ""}`}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+      {/* Tab Navigation */}
+      <div className="tab-navigation">
+        <button
+          className={`tab-btn ${activeTab === "file" ? "active" : ""}`}
+          onClick={() => {
+            setActiveTab("file");
+            setMessage("");
+            setMessageType("");
+          }}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.doc,.docx,.txt"
-            onChange={handleFileSelect}
-            style={{ display: "none" }}
-          />
+          📁 File Upload
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "text" ? "active" : ""}`}
+          onClick={() => {
+            setActiveTab("text");
+            setMessage("");
+            setMessageType("");
+          }}
+        >
+          📝 Text Input
+        </button>
+      </div>
 
-          {selectedFile ? (
-            <div className="selected-file">
-              <div className="file-icon">📄</div>
-              <div className="file-info">
-                <div className="file-name">{selectedFile.name}</div>
-                <div className="file-size">
-                  {formatFileSize(selectedFile.size)}
+      {/* File Upload Tab */}
+      {activeTab === "file" && (
+        <div className="upload-section">
+          <h3>Upload Document</h3>
+          <div
+            className={`file-drop-zone ${selectedFile ? "has-file" : ""}`}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+
+            {selectedFile ? (
+              <div className="selected-file">
+                <div className="file-icon">📄</div>
+                <div className="file-info">
+                  <div className="file-name">{selectedFile.name}</div>
+                  <div className="file-size">
+                    {formatFileSize(selectedFile.size)}
+                  </div>
                 </div>
+                <button
+                  className="remove-file"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFile(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = "";
+                    }
+                  }}
+                >
+                  ×
+                </button>
               </div>
-              <button
-                className="remove-file"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedFile(null);
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ) : (
-            <div className="drop-zone-content">
-              <div className="upload-icon">📁</div>
-              <p>Drop a file here or click to browse</p>
-              <p className="file-types">
-                Supports PDF, Word documents, and text files (max 10MB)
-              </p>
+            ) : (
+              <div className="drop-zone-content">
+                <div className="upload-icon">📁</div>
+                <p>Drop a file here or click to browse</p>
+                <p className="file-types">
+                  Supports PDF, Word documents, and text files (max 10MB)
+                </p>
+              </div>
+            )}
+          </div>
+
+          {isUploading && (
+            <div className="upload-progress">
+              <div className="progress-bar">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <div className="progress-text">
+                {uploadProgress}% - {message || "Processing..."}
+              </div>
             </div>
           )}
-        </div>{" "}
-        {isUploading && (
-          <div className="upload-progress">
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${uploadProgress}%` }}
-              ></div>
-            </div>
-            <div className="progress-text">
-              {uploadProgress}% - {message || "Processing..."}
-            </div>
-          </div>
-        )}
-        <button
-          className="upload-button"
-          onClick={uploadAndProcessFile}
-          disabled={!selectedFile || isUploading}
-        >
-          {isUploading ? "Processing..." : "Upload & Process Document"}
-        </button>
-        {message && <div className={`message ${messageType}`}>{message}</div>}
-      </div>
 
+          <button
+            className="upload-button"
+            onClick={uploadAndProcessFile}
+            disabled={!selectedFile || isUploading}
+          >
+            {isUploading ? "Processing..." : "Upload & Process Document"}
+          </button>
+        </div>
+      )}
+
+      {/* Text Input Tab */}
+      {activeTab === "text" && (
+        <div className="text-section">
+          <h3>Add Text Content</h3>
+
+          <div className="text-input-form">
+            <div className="input-group">
+              <label htmlFor="textTitle">Title (Optional)</label>
+              <input
+                id="textTitle"
+                type="text"
+                value={textTitle}
+                onChange={(e) => setTextTitle(e.target.value)}
+                placeholder="Enter a title for your text content"
+                className="title-input"
+                maxLength={100}
+                disabled={isProcessingText}
+              />
+              <div className="char-count">{textTitle.length}/100</div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="textContent">Text Content *</label>
+              <textarea
+                id="textContent"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Paste or type your text content here... (max 5MB)
+
+You can include:
+• Documentation
+• Manuals
+• Knowledge articles
+• FAQs
+• Any text-based information"
+                className="text-textarea"
+                rows={12}
+                disabled={isProcessingText}
+              />
+              <div className="text-info">
+                <span className="char-count">
+                  {(textInput.length / 1024 / 1024).toFixed(2)} MB / 5.00 MB
+                </span>
+                <span className="word-count">
+                  {textInput.trim() ? textInput.trim().split(/\s+/).length : 0}{" "}
+                  words
+                </span>
+              </div>
+            </div>
+
+            {isProcessingText && (
+              <div className="processing-indicator">
+                <div className="spinner"></div>
+                <span>Processing text content...</span>
+              </div>
+            )}
+
+            <button
+              className="process-button"
+              onClick={processTextInput}
+              disabled={!textInput.trim() || isProcessingText}
+            >
+              {isProcessingText ? "Processing..." : "Process Text Content"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Message Display */}
+      {message && <div className={`message ${messageType}`}>{message}</div>}
+
+      {/* Files List Section */}
       <div className="files-section">
         <h3>Uploaded Files</h3>
         {uploadedFiles.length === 0 ? (

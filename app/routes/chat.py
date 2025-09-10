@@ -74,37 +74,22 @@ try:
 except:
     print("⚠️ Chatbot initialization deferred to first connection")
 
-@router.websocket("/test")
-async def websocket_test(websocket: WebSocket):
-    """Simple WebSocket test endpoint"""
-    await websocket.accept()
-    await websocket.send_text("Hello! WebSocket connection successful!")
-    
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await websocket.send_text(f"Echo: {data}")
-    except WebSocketDisconnect:
-        print("WebSocket test disconnected")
-
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     """WebSocket endpoint for real-time chat"""
     
+    # Accept connection first
+    await websocket.accept()
+    
     try:
-        # Accept connection first
-        await websocket.accept()
-        print(f"🔌 WebSocket connection accepted for user: {user_id}")
-        
         # Then try to get chatbot
         bot = get_chatbot()
         if bot is None:
-            error_msg = {
+            await websocket.send_text(json.dumps({
                 "type": "error",
                 "message": "Chatbot service is currently unavailable. Please try again later.",
                 "timestamp": datetime.now().isoformat()
-            }
-            await websocket.send_text(json.dumps(error_msg))
+            }))
             await websocket.close(code=1011, reason="Chatbot unavailable")
             return
             

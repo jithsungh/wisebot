@@ -60,6 +60,14 @@ class ApiService {
     });
   }
 
+  // Text processing method
+  async processTextInput(text, title = "Manual Text Input") {
+    return this.client.post("/upload/process-text", {
+      text: text,
+      title: title,
+    });
+  }
+
   async getUploadedFiles() {
     return this.client.get("/upload/list");
   }

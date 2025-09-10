@@ -123,7 +123,6 @@ const ChatInterface = ({ userId }) => {
               <p>Try asking:</p>
               <ul>
                 <li>"Can you summarize the main points regarding _____?"</li>
-                <li>"Sun Rises in which direction?"</li>
               </ul>
               and many more... related to your documents.
             </div>

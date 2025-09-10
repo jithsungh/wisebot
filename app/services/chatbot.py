@@ -165,21 +165,21 @@ class AdaptiveKnowledgeChatbot:
             
             prompt = f"""You are a helpful AI assistant with access to a knowledge base. Answer the user's question based on the provided context and conversation history.
 
-Context from knowledge base:
-{context_text}
+                Context from knowledge base:
+                {context_text}
 
-Previous conversation history:
-{history_text}
+                Previous conversation history:
+                {history_text}
 
-User question: {query}
+                User question: {query}
 
-Instructions:
-- Use the context and conversation history to provide accurate answers
-- If the information isn't in the context, say "I don't have enough information about that topic"
-- Be conversational and remember previous parts of our conversation
-- Keep responses concise but helpful
-- No need of any citations or references or preamble like "Based on the provided context, etc."
-Answer:"""
+                Instructions:
+                - Use the context and conversation history to provide accurate answers
+                - If the information isn't in the context, say "I don't have enough information about that topic"
+                - Be conversational and remember previous parts of our conversation
+                - Keep responses concise but helpful
+                - No need of any citations or references or preamble like "Based on the provided context, etc."
+                Answer:"""
             
             # Get response from LLM
             response = self.llm.invoke([HumanMessage(content=prompt)])
